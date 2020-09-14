@@ -183,7 +183,11 @@ namespace barcode
                         frm.Invoke((MethodInvoker)delegate ()
                         {
                             var send_txt = recv.message;
-                            
+
+                            if (!frm.serialPort1.IsOpen)
+                            {
+                                frm.serialPort1.Open();
+                            }
                             frm.serialPort1.Write(send_txt);
                             frm.add_log(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss"), "送信:" + send_txt);
 
