@@ -178,7 +178,16 @@ namespace barcode
 
                 switch (recv.command)
                 {
-                    case "start_capture":
+                    case "send_command":
+
+                        frm.Invoke((MethodInvoker)delegate ()
+                        {
+                            var send_txt = recv.message;
+                            
+                            frm.serialPort1.Write(send_txt);
+                            frm.add_log(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss"), "送信:" + send_txt);
+
+                        });
 
                         break;
                     case "end_capture":
@@ -274,8 +283,31 @@ namespace barcode
             }
             if (this.serialPort1.IsOpen)
             {
-                this.serialPort1.Write(this.txtSend.Text);
+                var send_txt = this.txtSend.Text;
+
+                this.serialPort1.Write(send_txt);
+
+                this.add_log(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss"), "送信:" + send_txt);
             }
+        }
+
+        private void serialPort1_DataReceived(object sender, System.IO.Ports.SerialDataReceivedEventArgs e)
+        {
+            var recieved_data = frm.serialPort1.ReadExisting();
+
+            MessageData send = new MessageData();
+
+            send.command = "recieved_command";
+            send.message = recieved_data;
+
+            var send_str = JsonConvert.SerializeObject(send);
+
+            foreach (var session in session_ary.Values)
+            {
+                session.Send(send_str);
+            }
+
+            frm.add_log(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss"), "受信:" + recieved_data);
         }
     }
 }
