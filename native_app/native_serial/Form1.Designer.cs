@@ -1,4 +1,4 @@
-﻿namespace barcode
+﻿namespace native_serial
 {
     partial class Form1
     {

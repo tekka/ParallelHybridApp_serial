@@ -19,7 +19,7 @@ using System.Drawing.Imaging;
 using System.Security.Authentication;
 using Microsoft.Win32;
 
-namespace barcode
+namespace native_serial
 {
     public partial class Form1 : Form
     {
@@ -60,79 +60,19 @@ namespace barcode
                     MaxConnectionNumber = 100,
                     Mode = SuperSocket.SocketBase.SocketMode.Tcp,
                     Name = "SuperSocket.WebSocket Sample Server",
-                    MaxRequestLength = 1024 * 1024 * 10,
-                    Security = GetEnabledTlsVersions(),
-                    Certificate = new SuperSocket.SocketBase.Config.CertificateConfig
-                    {
-                        FilePath = ConfigurationManager.AppSettings["cert_file_path"],
-                        Password = ConfigurationManager.AppSettings["cert_password"]
-                    }
+                    MaxRequestLength = 1024 * 1024 * 10
                 };
 
                 setup_server(ref server_ssl, server_config_ssl);
-
-                valid_cert();
 
                 this.serialPort1.PortName = ConfigurationManager.AppSettings["port_name"];
 
             }
             catch (Exception ex)
             {
-                reflesh_cert();
+                MessageBox.Show(ex.ToString());
 
-                MessageBox.Show("証明書を更新しました。\nアプリケーションを再起動します。");
-
-                Application.Restart();
             }
-        }
-
-        public static string GetEnabledTlsVersions()
-        {
-            var enabledProtocols = SslProtocols.None;
-
-            try
-            {
-                var protocols = new[]
-                {
-            (key: @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Server", protocol: SslProtocols.Ssl2),
-            (key: @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Server", protocol: SslProtocols.Ssl3),
-            (key: @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server", protocol: SslProtocols.Tls),
-            (key: @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server", protocol: SslProtocols.Tls11),
-            (key: @"SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server", protocol: SslProtocols.Tls12)
-        };
-
-                using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
-                {
-                    foreach (var protocol in protocols)
-                    {
-                        using (var key = baseKey.OpenSubKey(protocol.key, false))
-                        {
-                            var value = key?.GetValue("DisabledByDefault") ?? 0;
-                            if (value is int disabled && disabled != 0)
-                            {
-                                continue;
-                            }
-
-                            value = key?.GetValue("Enabled") ?? 1;
-                            if (value is int enabled && enabled != 0)
-                            {
-                                enabledProtocols |= protocol.protocol;
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                // Log Error: "Failed to load enabled SSL protocols"
-            }
-
-            if (enabledProtocols == SslProtocols.None)
-            {
-                enabledProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-            }
-
-            return enabledProtocols.ToString();
         }
 
         private void setup_server(ref WebSocketServer server, SuperSocket.SocketBase.Config.ServerConfig serverConfig)
@@ -216,54 +156,6 @@ namespace barcode
                     frm.add_log(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss"), "切断");
                 });
             }
-        }
-
-        private static Boolean RemoteCertificateValidationCallback(Object sender,
-        X509Certificate certificate,
-        X509Chain chain,
-        SslPolicyErrors sslPolicyErrors)
-        {
-            if (sslPolicyErrors == SslPolicyErrors.None)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        private void valid_cert()
-        {
-            String hostName = ConfigurationManager.AppSettings["cert_local_host"];
-            Int32 port = Properties.Settings.Default.port;
-
-            using (TcpClient client = new TcpClient())
-            {
-                //接続先Webサーバー名からIPアドレスをルックアップ    
-                IPAddress[] ipAddresses = Dns.GetHostAddresses(hostName);
-
-                //Webサーバーに接続する
-                client.Connect(new IPEndPoint(ipAddresses[0], port));
-
-                //SSL通信の開始
-                using (SslStream sslStream =
-                    new SslStream(client.GetStream(), false, RemoteCertificateValidationCallback))
-                {
-                    //サーバーの認証を行う
-                    //これにより、RemoteCertificateValidationCallbackメソッドが呼ばれる
-                    sslStream.AuthenticateAsClient(hostName);
-                }
-            }
-        }
-
-        private void reflesh_cert()
-        {
-            //証明書の更新
-
-            var cert_file_url = ConfigurationManager.AppSettings["cert_file_url"];
-            var cert_file_path = ConfigurationManager.AppSettings["cert_file_path"];
-
-            var wc = new WebClient();
-            wc.DownloadFile(cert_file_url, cert_file_path);
         }
 
         public void add_log(string time, string log)
